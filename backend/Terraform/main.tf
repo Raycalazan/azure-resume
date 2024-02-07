@@ -121,14 +121,20 @@ resource "azurerm_linux_function_app" "function_app" {
   location             = azurerm_resource_group.rg.location
   service_plan_id      = azurerm_service_plan.service_plan.id
   storage_account_name = azurerm_storage_account.func_storage_account.name
+  app_settings = {
+    ENABLE_ORYX_BUILD              = "true"
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    COSMOSDB_CONNECTION_STRING     = "AccountEndpoint=${azurerm_cosmosdb_account.cosmosdb-resume.endpoint};AccountKey=${azurerm_cosmosdb_account.cosmosdb-resume.primary_key}"
+  }
   site_config {
     cors {
       allowed_origins = [
         "https://portal.azure.com",
         "https://www.rcalazan.com",
-        azurerm_storage_account.storage_account.primary_web_endpoint
+        "{$azurerm_storage_account.storage_account.primary_web_endpoint}"
       ]
     }
+
   }
 }
 
