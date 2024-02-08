@@ -115,12 +115,19 @@ resource "azurerm_service_plan" "service_plan" {
   os_type             = "Linux"
   sku_name            = "Y1"
 }
+resource "azurerm_application_insights" "app_insights" {
+  name                = "resume-app-insights"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  application_type    = "web"
+}
 resource "azurerm_linux_function_app" "function_app" {
-  name                 = "tf-ray-resume-function"
-  resource_group_name  = azurerm_resource_group.rg.name
-  location             = azurerm_resource_group.rg.location
-  service_plan_id      = azurerm_service_plan.service_plan.id
-  storage_account_name = azurerm_storage_account.func_storage_account.name
+  name                       = "tf-ray-resume-function"
+  resource_group_name        = azurerm_resource_group.rg.name
+  location                   = azurerm_resource_group.rg.location
+  service_plan_id            = azurerm_service_plan.service_plan.id
+  storage_account_name       = azurerm_storage_account.func_storage_account.name
+  storage_account_access_key = azurerm_storage_account.func_storage_account.primary_access_key
   app_settings = {
     ENABLE_ORYX_BUILD              = "true"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
@@ -133,6 +140,11 @@ resource "azurerm_linux_function_app" "function_app" {
         "https://www.rcalazan.com",
         "{$azurerm_storage_account.storage_account.primary_web_endpoint}"
       ]
+    }
+    application_insights_connection_string = azurerm_application_insights.app_insights.connection_string
+    application_insights_key = azurerm_application_insights.app_insights.instrumentation_key
+    application_stack {
+    python_version = "3.8"
     }
 
   }
