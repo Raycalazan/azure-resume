@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0.2"
+      version = "~> 3.39.0"
     }
   }
 
@@ -85,13 +85,17 @@ resource "azurerm_cosmosdb_account" "cosmosdb-resume" {
   name                = "tf-ray-resume-cosmosdb"
   offer_type          = "Standard"
   resource_group_name = azurerm_resource_group.rg.name
+  enable_free_tier    = true
 
   consistency_policy {
-    consistency_level = "Session"
+    consistency_level = "BoundedStaleness"
   }
   geo_location {
     failover_priority = 0
     location          = azurerm_resource_group.rg.location
+  }
+  capabilities {
+    name = "EnableServerless"
   }
 }
 
@@ -106,7 +110,7 @@ resource "azurerm_cosmosdb_sql_container" "resume-container" {
   resource_group_name = azurerm_resource_group.rg.name
   account_name        = azurerm_cosmosdb_account.cosmosdb-resume.name
   database_name       = azurerm_cosmosdb_sql_database.resume-db.name
-  partition_key_path  = "/definition/id"
+  partition_key_path  = "/id"
 }
 resource "azurerm_service_plan" "service_plan" {
   name                = "tf-rayresume-service-plan"
@@ -129,22 +133,29 @@ resource "azurerm_linux_function_app" "function_app" {
   storage_account_name       = azurerm_storage_account.func_storage_account.name
   storage_account_access_key = azurerm_storage_account.func_storage_account.primary_access_key
   app_settings = {
-    ENABLE_ORYX_BUILD              = "true"
+    AzureWebJobsFeatureFlags       = "EnableWorkerIndexing"
+    AzureWebJobsStorage            = "DefaultEndpointsProtocol=https;AccountName=tfrayresumefunc;AccountKey=${azurerm_storage_account.func_storage_account.primary_access_key};EndpointSuffix=core.windows.net"
+    FUNCTIONS_EXTENSION_VERSION    = "~4"
+    FUNCTIONS_WORKER_RUNTIME       = "python"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
-    COSMOSDB_CONNECTION_STRING     = "AccountEndpoint=${azurerm_cosmosdb_account.cosmosdb-resume.endpoint};AccountKey=${azurerm_cosmosdb_account.cosmosdb-resume.primary_key}"
+    CosmosDbConnectionString       = "AccountEndpoint=${azurerm_cosmosdb_account.cosmosdb-resume.endpoint};AccountKey=${azurerm_cosmosdb_account.cosmosdb-resume.primary_key}"
+    AzureWebJobsFeatureFlags       = "EnableWorkerIndexing"
+    CosmosDbEndpointURI            = azurerm_cosmosdb_account.cosmosdb-resume.endpoint
+    CosmosDbPrimaryKey             = azurerm_cosmosdb_account.cosmosdb-resume.primary_key
+    CosmosDB                       = "AccountEndpoint=${azurerm_cosmosdb_account.cosmosdb-resume.endpoint};AccountKey=${azurerm_cosmosdb_account.cosmosdb-resume.primary_key}"
   }
   site_config {
     cors {
       allowed_origins = [
         "https://portal.azure.com",
         "https://www.rcalazan.com",
-        "{$azurerm_storage_account.storage_account.primary_web_endpoint}"
+        "${azurerm_storage_account.storage_account.primary_web_endpoint}"
       ]
     }
     application_insights_connection_string = azurerm_application_insights.app_insights.connection_string
-    application_insights_key = azurerm_application_insights.app_insights.instrumentation_key
+    application_insights_key               = azurerm_application_insights.app_insights.instrumentation_key
     application_stack {
-    python_version = "3.8"
+      python_version = "3.10"
     }
 
   }
