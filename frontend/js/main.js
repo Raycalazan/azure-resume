@@ -2,7 +2,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
     getVisitCount();
 });
 
-const functionAPI = 'https://ray-resume-function.azurewebsites.net/api/HttpTrigger1?';
+const functionAPI = "https://tf-ray-resume-function.azurewebsites.net/api/resume_trigger";
 
 const getVisitCount = () => {
     let count = 30;
